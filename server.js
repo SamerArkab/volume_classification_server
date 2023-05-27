@@ -7,6 +7,7 @@ const app = express();
 const cors = require('cors');
 
 app.use(cors()); // Enable cross-origin resource sharing (CORS), this allows one domain to access different domains
+app.use('/uploads', express.static('uploads')); // Serve static files from 'uploads' directory
 
 // Configure Multer to store uploaded files on the file system
 const storage = multer.diskStorage({
@@ -57,6 +58,19 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
     }
 
 });
+
+app.get('/api/images', (req, res) => {
+    // Read the "uploads" directory and retrieve the list of filenames
+    fs.readdir('./uploads', (err, files) => {
+      if (err) {
+        console.error('Error reading files:', err);
+        res.status(500).json({ message: 'Error reading files' });
+      } else {
+        res.status(200).json(files);
+      }
+    });
+  });
+  
 
 // Start the server
 const port = process.env.PORT || 5000;
