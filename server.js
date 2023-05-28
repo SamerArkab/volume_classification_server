@@ -89,6 +89,7 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
             await Promise.all(files.map(file => downloadFile(file)));
 
             // Send back the final response data from both servers to the client
+            // After the promise is done. So we send a response only after all the files have been downloaded
             // List containing: 
             // _path to segmented image_, _volume_, _list: [label, nutritional values]_
             res.status(200).json(response2.data);
