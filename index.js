@@ -119,6 +119,41 @@ app.get('/api/images', (req, res) => {
     });
 });
 
+app.get('/api/deleteAll', async (req, res) => {
+    const dirPath = path.join(__dirname, './uploads');
+
+    const deleteLocalFiles = new Promise((resolve, reject) => {
+        fs.rm(dirPath, { recursive: true }, (error) => {
+            if (error) {
+                console.error('Error while deleting directory.', error);
+                reject('Error while deleting local directory.');
+            } else {
+                console.log('Directory deleted successfully.');
+                resolve('Local directory deleted successfully.');
+            }
+        });
+    });
+
+    const deleteGCSFiles = storageGCS.bucket(bucketName)
+        .getFiles({ prefix: directoryPath })
+        .then(([files]) => {
+            const deletePromises = files.map(file => file.delete());
+            return Promise.all(deletePromises);
+        })
+        .then(() => {
+            console.log('Files deleted successfully from GCS.');
+            return 'Files deleted successfully from GCS.';
+        })
+        .catch((err) => {
+            console.error('Error getting the files from GCS:', err);
+            throw 'Error deleting files from GCS.';
+        });
+
+    Promise.all([deleteLocalFiles, deleteGCSFiles])
+        .then(() => res.status(200).json({ message: 'All files and directories deleted successfully.' }))
+        .catch((error) => res.status(500).json({ error: 'Internal server error', details: error }));
+});
+
 app.delete('/api/delete/:filename', async (req, res) => {
     const filename = req.params.filename;
 
@@ -173,7 +208,6 @@ app.post('/api/edit', async (req, res) => {
                 nf_total_fat,
                 nf_cholesterol,
                 nf_sodium,
-                nf_potassium,
                 nf_total_carbohydrate,
                 nf_sugars,
                 nf_protein
@@ -187,7 +221,6 @@ app.post('/api/edit', async (req, res) => {
                 nf_total_fat,
                 nf_cholesterol,
                 nf_sodium,
-                nf_potassium,
                 nf_total_carbohydrate,
                 nf_sugars,
                 nf_protein
