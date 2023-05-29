@@ -10,6 +10,7 @@ const { Storage } = require('@google-cloud/storage');
 
 app.use(cors()); // Enable cross-origin resource sharing (CORS), this allows one domain to access different domains
 app.use('/uploads', express.static('uploads')); // Serve static files from 'uploads' directory
+app.use(express.json()); // Enables JSON parsing for the request body, allowing you to access req.body and its properties
 
 // Create a new instance of the Storage class
 const storageGCS = new Storage({
@@ -69,16 +70,17 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
         const response1 = await axios.post('http://localhost:8080/estimate_volume', formData, {
             headers: formData.getHeaders(),
         });
-
+        console.log('Response from Volume-Segmentation API:');
         console.log(response1.data);
 
         // Prepare the data to send to the classification-nutritional_values API
         const response2 = await axios.post('http://localhost:8081/predict', response1.data);
-
+        console.log('Response from Classification-Nutritional Values API:');
         console.log(response2.data);
 
         // Uncomment only when we want to check the DB
         // const response3 = await axios.get('http://localhost:8081/db');
+        // console.log('View current DB data:');
         // console.log(response3.data);
 
         // Get the GCS bucket
@@ -115,6 +117,96 @@ app.get('/api/images', (req, res) => {
             res.status(200).json(files);
         }
     });
+});
+
+app.delete('/api/delete/:filename', async (req, res) => {
+    const filename = req.params.filename;
+
+    // Delete the file from local filesystem
+    const localFilePath = path.join(uploadDir, filename);
+    try {
+        fs.unlinkSync(localFilePath);
+    } catch (err) {
+        console.error('Error deleting the local file:', err);
+        return res.status(500).json({ success: false, message: 'Error deleting the local file' });
+    }
+
+    // Delete the file from Google Cloud Storage
+    const gcsFilePath = `${directoryPath}${filename}`;
+    const file = storageGCS.bucket(bucketName).file(gcsFilePath);
+    try {
+        await file.delete();
+    } catch (err) {
+        console.error('Error deleting the file from GCS:', err);
+        return res.status(500).json({ success: false, message: 'Error deleting the file from GCS' });
+    }
+
+    res.json({ success: true });
+});
+
+app.post('/api/edit', async (req, res) => {
+    const { newName, updatedData } = req.body;
+    const editName = newName.replace(/_/g, ' ').replace(/\b\w/g, (match) => match.toUpperCase());
+
+    if (!editName) {
+        return res.status(400).json({ message: 'Missing new name' });
+    }
+
+    const end_pt_url = 'https://trackapi.nutritionix.com/v2/natural/nutrients';
+    const HEADERS = {
+        "Content-Type": "application/json",
+        "x-app-id": "b663319a",
+        "x-app-key": "09f02c8d76e65b2570d3d89b3e519b8d"
+    };
+    const query = {
+        "query": editName,
+    };
+
+    try {
+        const response = await axios.post(end_pt_url, query, { headers: HEADERS });
+        const foods = response.data.foods;
+        if (foods.length > 0) {
+            const {
+                food_name,
+                serving_weight_grams,
+                nf_calories,
+                nf_total_fat,
+                nf_cholesterol,
+                nf_sodium,
+                nf_potassium,
+                nf_total_carbohydrate,
+                nf_sugars,
+                nf_protein
+            } = foods[0];
+
+            const tmp = serving_weight_grams;
+            const resultArray = [
+                food_name,
+                serving_weight_grams,
+                nf_calories,
+                nf_total_fat,
+                nf_cholesterol,
+                nf_sodium,
+                nf_potassium,
+                nf_total_carbohydrate,
+                nf_sugars,
+                nf_protein
+            ];
+
+            for (let val = 2; val < resultArray.length; val++) {
+                resultArray[val] = (parseFloat(resultArray[val]) / parseFloat(tmp)) * updatedData;
+            }
+            console.log('Edit results:');
+            console.log(resultArray);
+
+            res.status(200).json(resultArray);
+        } else {
+            res.status(404).json({ message: 'Food not found' });
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ message: 'Error processing the request' });
+    }
 });
 
 // Start the server
