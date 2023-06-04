@@ -67,14 +67,14 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
         const formData = new FormData();
         formData.append('img', fs.createReadStream(filePath), req.file.filename);
 
-        const response1 = await axios.post('http://34.132.187.100/estimate_volume', formData, {
+        const response1 = await axios.post('http://34.28.180.8/estimate_volume', formData, {
             headers: formData.getHeaders(),
         });
         console.log('Response from Volume-Segmentation API:');
         console.log(response1.data);
 
         // Prepare the data to send to the classification-nutritional_values API
-        const response2 = await axios.post('http://34.133.121.33/predict', response1.data);
+        const response2 = await axios.post('http://104.198.208.219/predict', response1.data);
         console.log('Response from Classification-Nutritional Values API:');
         console.log(response2.data);
 
