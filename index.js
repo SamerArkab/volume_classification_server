@@ -78,11 +78,6 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
         console.log('Response from Classification-Nutritional Values API:');
         console.log(response2.data);
 
-        // Uncomment only when we want to check the DB
-        // const response3 = await axios.get('http://localhost:8081/db');
-        // console.log('View current DB data:');
-        // console.log(response3.data);
-
         // Get the GCS bucket
         const bucket = storageGCS.bucket(bucketName);
 
