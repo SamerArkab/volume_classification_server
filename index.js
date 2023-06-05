@@ -54,6 +54,80 @@ function downloadFile(file) {
     });
 }
 
+const processingResults = {};
+
+// Process the request asynchronously
+async function processRequest(req, requestId) {
+    try {
+        // Prepare the data to send to the segmentation-volume API
+        const filePath = req.file.path;
+
+        const formData = new FormData();
+        formData.append('img', fs.createReadStream(filePath), req.file.filename);
+
+        const response1 = await axios.post('http://34.136.207.56/estimate_volume', formData, {
+            headers: formData.getHeaders(),
+        });
+        console.log('Response from Volume-Segmentation API:');
+        console.log(response1.data);
+
+        // Prepare the data to send to the classification-nutritional_values API
+        const response2 = await axios.post('http://34.72.170.247/predict', response1.data);
+        console.log('Response from Classification-Nutritional Values API:');
+        console.log(response2.data);
+
+        // Get the GCS bucket
+        const bucket = storageGCS.bucket(bucketName);
+
+        await new Promise((resolve, reject) => {
+            bucket.getFiles({ prefix: directoryPath }, async (err, files) => {
+                if (err) {
+                    console.error('Error while listing files in the GCS directory:', err);
+                    reject(err);
+                    return;
+                }
+
+                await Promise.all(files.map(file => downloadFile(file)));
+
+                // Store the final response data from both servers as the result
+                processingResults[requestId] = response2.data;
+
+                resolve();
+            });
+        });
+    } catch (error) {
+        console.error('Error:', error);
+        processingResults[requestId] = { error: 'Error processing the request' };
+    }
+}
+
+// Define your API endpoint
+app.post('/api/upload', upload.single('image'), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    // Create a unique ID for this request
+    const requestId = Date.now().toString();
+
+    // Start the processing asynchronously
+    processRequest(req, requestId);
+
+    // Immediately respond with the request ID
+    res.status(200).json({ requestId: requestId });
+});
+
+app.get('/api/result/:requestId', (req, res) => {
+    const result = processingResults[req.params.requestId];
+    if (!result) {
+        res.status(404).json({ message: 'Result not found' });
+    } else if (result.error) {
+        res.status(500).json({ message: result.error });
+    } else {
+        res.status(200).json(result);
+    }
+});
+/*
 // Define your API endpoint
 app.post('/api/upload', upload.single('image'), async (req, res) => {
     if (!req.file) {
@@ -101,7 +175,7 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
     }
 
 });
-
+*/
 app.get('/api/images', (req, res) => {
     // Read the "uploads" directory and retrieve the list of filenames
     fs.readdir('./uploads', (err, files) => {
