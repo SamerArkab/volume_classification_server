@@ -17,7 +17,7 @@ The server code is organized around Express.js middleware and a series of endpoi
 
 ## Usage
 
-You can start the server locally by running `node server.js`, assuming you've installed all the necessary dependencies (`npm install`). The server will start on port 5000, or on the port specified by the `PORT` environment variable.
+You can start the server locally by running `node server.js`, assuming you've installed all the necessary dependencies (`npm install`). The server will start on port 5000, or on the port specified by the `PORT` environment variable.<br>
 It is also hosted on a GCP VM, so you can access it using the client-side without running the server on your local machine.
 * I don't keep the models running idly on Google Kubernetes Engine to save on costs.
 
