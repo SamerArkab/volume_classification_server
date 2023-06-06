@@ -1,4 +1,4 @@
-You can find more details about the models for classification, volume estimation, and segmentation [here](https://github.com/SamerArkab/Final_Proj_Volume_Classification)
+You can find more details about the models for classification, volume estimation, and segmentation [here](https://github.com/SamerArkab/Final_Proj_Volume_Classification)<br>
 You can find the client-side [here](https://github.com/SamerArkab/volume_classification_client)
 
 # Nutritional Analysis Server
